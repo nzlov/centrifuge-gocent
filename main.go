@@ -12,34 +12,34 @@
 // endpoint using internal command buffer.
 //
 //  c := NewClient("http://localhost:8000", "secret", 5*time.Second)
-//  
+//
 //  ok, err := c.Publish("$public:chat", []byte(`{"input": "test"}`))
 //  if err != nil {
 //  	println(err.Error())
 //  	return
 //  }
 //  println("Publish successful:", ok)
-//  
+//
 //  presence, _ := c.Presence("$public:chat")
 //  fmt.Printf("Presense: %v\n", presence)
-//  
+//
 //  history, _ := c.History("$public:chat")
 //  fmt.Printf("History: %v\n", history)
-//  
+//
 //  channels, _ := c.Channels()
 //  fmt.Printf("Channels: %v\n", channels)
-//  
+//
 //  stats, _ := c.Stats()
 //  fmt.Printf("Stats: %v\n", stats)
-//  
+//
 //  _ = c.AddPublish("$public:chat", []byte(`{"input": "test1"}`))
 //  _ = c.AddPublish("$public:chat", []byte(`{"input": "test2"}`))
 //  _ = c.AddPublish("$public:chat", []byte(`{"input": "test3"}`))
-//  
+//
 //  result, err := c.Send()
 //  println("Sent", len(result), "publish commands in one request")
 //
-package gocent // import "github.com/centrifugal/gocent"
+package gocent
 
 import (
 	"bytes"
@@ -51,8 +51,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/auth"
-	"github.com/nu7hatch/gouuid"
+	"github.com/nzlov/centrifugo/libcentrifugo/auth"
+	uuid "github.com/satori/go.uuid"
 )
 
 var (
@@ -127,10 +127,7 @@ func (c *Client) Reset() {
 
 // Lock must be held outside this method.
 func (c *Client) add(cmd Command) error {
-	uid, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
+	uid := uuid.NewV4()
 	cmd.UID = uid.String()
 	c.cmds = append(c.cmds, cmd)
 	return nil
@@ -251,13 +248,15 @@ func (c *Client) AddPresence(channel string) error {
 
 // AddHistory adds history command to client command buffer but not actually
 // send it until Send method explicitly called.
-func (c *Client) AddHistory(channel string) error {
+func (c *Client) AddHistory(channel string, skip, limit int) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	cmd := Command{
 		Method: "history",
 		Params: map[string]interface{}{
 			"channel": channel,
+			"skip":    skip,
+			"limit":   limit,
 		},
 	}
 	return c.add(cmd)
@@ -448,23 +447,23 @@ func (c *Client) Presence(channel string) (map[string]ClientInfo, error) {
 
 // History sends history command for channel to server and returns slice with
 // messages and any error occurred in process.
-func (c *Client) History(channel string) ([]Message, error) {
+func (c *Client) History(channel string, skip, limit int) ([]Message, int, error) {
 	if !c.empty() {
-		return []Message{}, ErrClientNotEmpty
+		return []Message{}, 0, ErrClientNotEmpty
 	}
-	err := c.AddHistory(channel)
+	err := c.AddHistory(channel, skip, limit)
 	if err != nil {
-		return []Message{}, err
+		return []Message{}, 0, err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	result, err := c.Send()
 	if err != nil {
-		return []Message{}, err
+		return []Message{}, 0, err
 	}
 	resp := result[0]
 	if resp.Error != "" {
-		return []Message{}, errors.New(resp.Error)
+		return []Message{}, 0, errors.New(resp.Error)
 	}
 	return DecodeHistory(resp.Body)
 }
@@ -543,13 +542,13 @@ func DecodeDisconnect(body []byte) (bool, error) {
 }
 
 // DecodeHistory allows to decode history response body to get a slice of messages.
-func DecodeHistory(body []byte) ([]Message, error) {
+func DecodeHistory(body []byte) ([]Message, int, error) {
 	var d historyBody
 	err := json.Unmarshal(body, &d)
 	if err != nil {
-		return []Message{}, err
+		return []Message{}, 0, err
 	}
-	return d.Data, nil
+	return d.Data, d.Total, nil
 }
 
 // DecodeChannels allows to decode channels command response body to get a slice of channels.

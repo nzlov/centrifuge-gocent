@@ -33,7 +33,8 @@ type ClientInfo struct {
 // Message represents message published into channel.
 type Message struct {
 	UID       string           `json:"uid"`
-	Timestamp string           `json:"timestamp"`
+	Read      bool             `json:"read"`
+	Timestamp int64            `json:"timestamp"`
 	Info      *ClientInfo      `json:"info,omitempty"`
 	Channel   string           `json:"channel"`
 	Data      *json.RawMessage `json:"data"`
@@ -68,6 +69,7 @@ type presenceBody struct {
 type historyBody struct {
 	Channel string    `json:"channel"`
 	Data    []Message `json:"data"`
+	Total   int       `json:"total"`
 }
 
 // channelsBody represents body of response in case of successful channels command.

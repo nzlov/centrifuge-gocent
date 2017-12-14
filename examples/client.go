@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/centrifugal/gocent"
+	gocent "github.com/nzlov/centrifuge-gocent"
 )
 
 func main() {
 
-	ch := "$public:chat"
+	ch := "public:chat"
 
-	c := gocent.NewClient("http://localhost:8000", "secret", 5*time.Second)
+	c := gocent.NewClient("http://192.168.1.9:8000", "109AF84FWF45AS4S5W8F", 5*time.Second)
 
 	// How to publish.
 	ok, err := c.Publish(ch, []byte(`{"input": "test"}`))
@@ -26,8 +26,11 @@ func main() {
 	fmt.Printf("Presense for channel %s: %v\n", ch, presence)
 
 	// How to get history.
-	history, _ := c.History(ch)
-	fmt.Printf("History for channel %s, %d messages: %v\n", ch, len(history), history)
+	history, total, err := c.History(ch, -1, -1)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("History for channel %s, %d of %d messages: %v\n", ch, len(history), total, history)
 
 	// How to get channels.
 	channels, _ := c.Channels()
@@ -45,7 +48,7 @@ func main() {
 	fmt.Println("Sent", len(result), "publish commands in one request")
 
 	// How to broadcast the same data into 3 different channels in one request.
-	chs := []string{"$public:chat_1", "$public:chat_2", "$public:chat_3"}
+	chs := []string{"public:chat_1", "public:chat_2", "public:chat_3"}
 	ok, err = c.Broadcast(chs, []byte(`{"input": "test"}`))
 	if err != nil {
 		println(err.Error())
