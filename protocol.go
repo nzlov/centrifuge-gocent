@@ -13,6 +13,7 @@ type Command struct {
 
 // Response is a response of server on command sent.
 type Response struct {
+	UID    string          `json:"uid"`
 	Method string          `json:"method"`
 	Error  string          `json:"error"`
 	Body   json.RawMessage `json:"body"`

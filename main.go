@@ -288,25 +288,25 @@ func (c *Client) AddStats() error {
 
 // Publish sends publish command to server and returns boolean indicator of success and
 // any error occurred in process.
-func (c *Client) Publish(channel string, data []byte) (bool, error) {
+func (c *Client) Publish(channel string, data []byte) (string, bool, error) {
 	if !c.empty() {
-		return false, ErrClientNotEmpty
+		return "", false, ErrClientNotEmpty
 	}
 	err := c.AddPublish(channel, data)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	result, err := c.Send()
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	resp := result[0]
 	if resp.Error != "" {
-		return false, errors.New(resp.Error)
+		return "", false, errors.New(resp.Error)
 	}
-	return DecodePublish(resp.Body)
+	return string(resp.Body), true, err
 }
 
 // PublishClient sends publish command to server and returns boolean indicator of success and
