@@ -152,7 +152,7 @@ func (c *Client) AddPublish(channel string, data []byte) error {
 
 // AddPublishClient adds publish command to client command buffer but not actually
 // send it until Send method explicitly called.
-func (c *Client) AddPublishClient(channel string, data []byte, client string) error {
+func (c *Client) AddPublishClient(channel string, data []byte, client, nclient string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var raw json.RawMessage
@@ -163,6 +163,7 @@ func (c *Client) AddPublishClient(channel string, data []byte, client string) er
 			"channel": channel,
 			"data":    &raw,
 			"client":  client,
+			"nclient": nclient,
 		},
 	}
 	return c.add(cmd)
@@ -311,11 +312,13 @@ func (c *Client) Publish(channel string, data []byte) (string, bool, error) {
 
 // PublishClient sends publish command to server and returns boolean indicator of success and
 // any error occurred in process. `client` is client ID initiating this event.
-func (c *Client) PublishClient(channel string, data []byte, client string) (bool, error) {
+// client 消息客户端接受列表 用 `,` 分割，为空无效
+// nclient 消息客户端屏蔽列表 用 `,` 分割，为空无效
+func (c *Client) PublishClient(channel string, data []byte, client, nclient string) (bool, error) {
 	if !c.empty() {
 		return false, ErrClientNotEmpty
 	}
-	err := c.AddPublishClient(channel, data, client)
+	err := c.AddPublishClient(channel, data, client, nclient)
 	if err != nil {
 		return false, err
 	}
