@@ -152,7 +152,7 @@ func (c *Client) AddPublish(channel string, data []byte) error {
 
 // AddPublishClient adds publish command to client command buffer but not actually
 // send it until Send method explicitly called.
-func (c *Client) AddPublishClient(channel string, data []byte, client, nclient string) error {
+func (c *Client) AddPublishClient(channel, appkey string, data []byte, client, nclient string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var raw json.RawMessage
@@ -163,6 +163,7 @@ func (c *Client) AddPublishClient(channel string, data []byte, client, nclient s
 			"channel": channel,
 			"data":    &raw,
 			"client":  client,
+			"appkey":  appkey,
 			"nclient": nclient,
 		},
 	}
@@ -171,7 +172,7 @@ func (c *Client) AddPublishClient(channel string, data []byte, client, nclient s
 
 // AddBroadcast adds broadcast command to client command buffer but not actually
 // send it until Send method explicitly called.
-func (c *Client) AddBroadcast(channels []string, data []byte) error {
+func (c *Client) AddBroadcast(channels []string, appkey string, data []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var raw json.RawMessage
@@ -181,6 +182,7 @@ func (c *Client) AddBroadcast(channels []string, data []byte) error {
 		Params: map[string]interface{}{
 			"channels": channels,
 			"data":     &raw,
+			"appkey":   appkey,
 		},
 	}
 	return c.add(cmd)
@@ -188,7 +190,7 @@ func (c *Client) AddBroadcast(channels []string, data []byte) error {
 
 // AddBroadcastClient adds broadcast command to client command buffer but not actually
 // send it until Send method explicitly called.
-func (c *Client) AddBroadcastClient(channels []string, data []byte, client string) error {
+func (c *Client) AddBroadcastClient(channels []string, appkey string, data []byte, client string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var raw json.RawMessage
@@ -199,6 +201,7 @@ func (c *Client) AddBroadcastClient(channels []string, data []byte, client strin
 			"channels": channels,
 			"data":     &raw,
 			"client":   client,
+			"appkey":   appkey,
 		},
 	}
 	return c.add(cmd)
@@ -314,33 +317,33 @@ func (c *Client) Publish(channel string, data []byte) (string, bool, error) {
 // any error occurred in process. `client` is client ID initiating this event.
 // client 消息客户端接受列表 用 `,` 分割，为空无效
 // nclient 消息客户端屏蔽列表 用 `,` 分割，为空无效
-func (c *Client) PublishClient(channel string, data []byte, client, nclient string) (bool, error) {
+func (c *Client) PublishClient(channel, appkey string, data []byte, client, nclient string) (string, bool, error) {
 	if !c.empty() {
-		return false, ErrClientNotEmpty
+		return "", false, ErrClientNotEmpty
 	}
-	err := c.AddPublishClient(channel, data, client, nclient)
+	err := c.AddPublishClient(channel, appkey, data, client, nclient)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	result, err := c.Send()
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	resp := result[0]
 	if resp.Error != "" {
-		return false, errors.New(resp.Error)
+		return "", false, errors.New(resp.Error)
 	}
-	return DecodePublish(resp.Body)
+	return string(resp.Body), true, err
 }
 
 // Broadcast sends broadcast command to server.
-func (c *Client) Broadcast(channels []string, data []byte) (bool, error) {
+func (c *Client) Broadcast(channels []string, appkey string, data []byte) (bool, error) {
 	if !c.empty() {
 		return false, ErrClientNotEmpty
 	}
-	err := c.AddBroadcast(channels, data)
+	err := c.AddBroadcast(channels, appkey, data)
 	if err != nil {
 		return false, err
 	}
@@ -358,11 +361,11 @@ func (c *Client) Broadcast(channels []string, data []byte) (bool, error) {
 }
 
 // BroadcastClient sends broadcast command to server with client ID.
-func (c *Client) BroadcastClient(channels []string, data []byte, client string) (bool, error) {
+func (c *Client) BroadcastClient(channels []string, appkey string, data []byte, client string) (bool, error) {
 	if !c.empty() {
 		return false, ErrClientNotEmpty
 	}
-	err := c.AddBroadcastClient(channels, data, client)
+	err := c.AddBroadcastClient(channels, appkey, data, client)
 	if err != nil {
 		return false, err
 	}
