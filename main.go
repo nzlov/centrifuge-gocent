@@ -127,7 +127,10 @@ func (c *Client) Reset() {
 
 // Lock must be held outside this method.
 func (c *Client) add(cmd Command) error {
-	uid := uuid.NewV4()
+	uid, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
 	cmd.UID = uid.String()
 	c.cmds = append(c.cmds, cmd)
 	return nil
@@ -306,11 +309,15 @@ func (c *Client) Publish(channel string, data []byte) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	resp := result[0]
-	if resp.Error != "" {
-		return "", false, errors.New(resp.Error)
+	if len(result) > 0 {
+		resp := result[0]
+		if resp.Error != "" {
+			return "", false, errors.New(resp.Error)
+		}
+		return string(resp.Body), true, err
 	}
-	return string(resp.Body), true, err
+
+	return "", false, errors.New("无返回")
 }
 
 // PublishClient sends publish command to server and returns boolean indicator of success and
