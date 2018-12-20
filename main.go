@@ -127,10 +127,7 @@ func (c *Client) Reset() {
 
 // Lock must be held outside this method.
 func (c *Client) add(cmd Command) error {
-	uid, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
+	uid := uuid.NewV4()
 	cmd.UID = uid.String()
 	c.cmds = append(c.cmds, cmd)
 	return nil
